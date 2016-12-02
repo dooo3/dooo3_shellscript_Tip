@@ -1,0 +1,128 @@
+=tar명령어=
+
+==find==
+find 명령어는 | 파이프 를 이용하여 리눅스 쉘 스크립트랑 섞어서 무궁무진하게
+작업을 편하게 해줄 수 있습니다.!
+
+기초적인 find 명령어
+ find [경로] [옵션] 
+ ex)find ./ -type f -newermt $today_date ! -newermt $tomorrow_date>>${LOG}
+
+형식으로 실행합니다. 위 --help 에서 tests 에서 보시는바와 같이 여러 가지 예제가 있으며, 검색을 한뒤 결과값에 대하여Acitons 을 실행할 수가 있습니다.
+
+유용한 사용 예
+
+
+'''- 특정 UID 를 찾아 소유자와 그룹을 바꾸기 (UID 는 ID 명령어를 통해 확인가능, 예- id apache )''' 
+ find . -uid 591 -exec chown apache:apache {} \;
+
+ find : 찾기 명령
+ .    : 은 현재 디렉 아래로
+ -uid : UID 패턴검색옵션
+ 591 : UID 값이 591인 파일 찾기
+ -exec : 실행하라 는 명령어
+ chown apache:apache : 실행할 명령
+ {}      : find 로 검색하여 나온 결과값을 exec 로 실행한 명령어의 대상으로
+ \;     : find 에서 -exec 옵션으로 실행할 명령의 끝을 나타냄
+
+'''- 사용자 이름이 없거나 그룹 이름이 없는 파일 찾기 (명령어 중 -o 옵션은 or 연산자 입니다.)''' 
+ find / ( -nouser -o -nogroup ) -print | more 
+
+'''- 파일 크기가 800kb 이상인 파일을 찾아서 삭제''' 
+ find / -size +800k -exec rm -rf {} \;
+
+'''첫번째 글짜기a 또는 b 두번쨰가 c또는d로 시작하는 모든 파일 찾기'''
+ find / -name '[a,b][c,d]* -print
+
+'''일반사용자에게 쓰기권한(rwx---rwx)이 있는 파일을 찾아서 실행 권한을 삭제 (단, ! 을 사용하여 링크 파일은 제외함)'''
+ find / -perm +2 ! -type l -print -exec chmod o-w {}; 
+ 
+'''txt 파일중에서 해당 문자열이 포함된 파일을 검색하여 출력'''
+ find . -type f -name *.txt -exec grep "찾을문자열" {} \; -print
+
+'''특정 문자열이 포함된 라인을 검색하여 삭제(하위폴더 포함)'''
+ find . -type f -name "파일명" -exec vi -c "%g/찾을문자열/d" -c "wq" "{}" \; 
+ ※ 위 명령어를 보면 vi 로 열어서 해당문자열을 삭제한 후에 저장을 하니 검색조건에 맞는 모든 파일들의 Access 날짜가 수정됩니다. 참고하세요~
+
+'''하위폴더 검색하여 조건에 맞는 문자열 치환'''
+ find . -type f -name "*.*" -exec vi -c "%s/[찾을문자열]/[바꿀문자열]/g" -c "wq" "{}" \; 
+
+※ 문자열 중 / 와 같은 경우 명령어로 읽지 말고 문자로 읽도록 \ 를 붙여줘야 합니다. 
+예) http://www.mindpower.kr/1212 를 넣을경우 http:\/\/www.mindpower.kr\/1212 
+
+===find 예제(인코딩 변경)===
+
+'''현재 폴더에서 확장자가 php 인 파일의 인코딩을 utf-8 에서 euc-kr 로 수정''' 
+ for PHP in `find ./ -name "*.php"` ; do iconv -c -f utf-8 -t euc-kr $PHP > $PHP.bak && mv $PHP.bak $PHP ;  done
+
+위 내용에 대해 간단히 설명을 드리자면! 
+
+for 명령어로 find ./ -name "*.php" 의 값을 PHP 라는 변수로 선언 한뒤 iconv 명령어로 인코딩을 변경한 파일명.bak 파일로 생성합니다.
+ 그다음 mv 명령어로 파일명.bak 의 이름의 파일들을 기존 파일명으로 덮어씌어버리는 겁니다.
+
+주의할점은 기본 리눅스 쉘에서는 alias mv='mv -i' 가 지정되어있습니다. 같은 이름의 파일을 덮어씌우기전에 물어보는거지요. 이 항목이 기록되어 있는  ~/.bashrc 파일 열어 alias mv='mv -f' 로 수정 후 source ~/.bashrc 후 작업하면 됩니다.
+
+약간의 오류가 생겨 mv 가 몇몇 파일들에 적용이 안될수도 있습니다. 그럴땐 확인 후 다시 수작업으로 변경해줘야합니다.
+
+==함수==
+vi func_Name.sh 로 만들면 됨.
+
+실행법
+콘솔에서 sh func_Name.sh로 실행하면 됨
+만약 인자가 있으면
+ sh func_Name.sh 100 이런식으로 넣으면 된다.
+
+===일정시간에 만들어진 로그 저장해서 압축하는 함수===
+ #!/bin/sh
+ LOG=./logfile.log
+ today_date=$(date --date=$1 +"%Y%m%d")
+ tomorrow_date=$(date --date=$today_date '+%Y-%m-%d' -d '1 day')
+ #echo "$today_date"
+ #echo "$tomorrow_date"
+ find ./ -type f -newermt $today_date ! -newermt $tomorrow_date>>${LOG}
+ tar cvf test.tar.gz `cat logfile.log`
+ #echo $START
+ #echo $tomorrow_date
+
+'''실행'''
+ sh test2.sh 20161123
+'''결과'''
+ logfile.log생성, test.tar.gz 압축 파일 생성
+
+
+'''version2'''
+
+ #!/bin/sh
+ today_date=$(date "+%Y%m%d")
+ log_date=$(date "+%Y%m%d %H:%M:%S")
+ tomorrow_date=$(date --date=$today_date '+%Y%m%d' -d '1 day')
+ PATH_log="./Log"
+ if [ ! -d "$PATH_log" ]
+ then
+   echo "Log empty"
+   mkdir Log
+ else
+   echo "Log exist"
+ fi
+ FILE_LIST=$(find ./ ! \( -path './Log' -prune \) -type f -newermt $today_date ! -newermt  $tomorrow_date )
+ echo $FILE_LIST
+ if [ FILE_LIST  ]
+ then
+         tar zcf backup$today_date.tar.gz $FILE_LIST
+         #scp ./backup$today_date.tar.gz gunman@192.168.11.96:/home/gunman/gold/
+ fi
+ # write Log
+ LOG=./Log/log_$today_date.log
+ echo "$log_date">>${LOG}
+ echo "$FILE_LIST">>${LOG}
+
+===if문===
+** if문과 [ 사이에 반드시 space가 들어가야 오류가 발생하지 않습니다. **
+
+
+절대경로
+
+쉘스크립트를 만들때 무조건 사용하자
+BACK_DIR=$(cd "$(dirname "$0")" && pwd)
+
+-by rma-
